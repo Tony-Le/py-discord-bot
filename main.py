@@ -1,4 +1,5 @@
 # This example requires the 'message_content' intent.
+from datetime import datetime
 
 import discord
 import constants
@@ -7,6 +8,9 @@ import requests
 import helpers
 import validators
 import pyrfc6266
+from urlextract import URLExtract
+import os
+from urllib.parse import urlparse
 
 
 class MyClient(discord.Client):
@@ -27,6 +31,8 @@ class MyClient(discord.Client):
         # messages = [message async for message in channel.history(limit=constants.message_search_limit)]
         async for msg in channel.history(limit=constants.message_search_limit):
             print(msg.content)
+            extractor = URLExtract()
+            urls = extractor.find_urls(msg.content)
             if msg.attachments:
                 for attachment in msg.attachments:
                     if attachment.url and attachment.filename:
@@ -35,13 +41,19 @@ class MyClient(discord.Client):
                         if response.status_code == 200:
                             with open(constants.folder_path + "/" + attachment.filename, "wb") as f:
                                 f.write(response.content)
-            elif validators.url(msg.content):
-                if helpers.is_url_image(msg.content):
-                    response = requests.get(msg.content)
-                    if response.status_code == 200:
-                        filename = pyrfc6266.parse_filename(response.headers['content-disposition'])
-                        with open(constants.folder_path + "/" + filename, "wb") as f:
-                            f.write(response.content)
+            for url in urls:
+                if validators.url(url):
+                    if helpers.is_url_image(url):
+                        response = requests.get(url)
+                        if response.status_code == 200:
+                            filename = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+                            if response.headers and 'content-disposition' in response.headers:
+                                filename = pyrfc6266.parse_filename(response.headers['content-disposition'])
+                            elif len(os.path.basename(urlparse(url).path)) > 0:
+                                filename = os.path.basename(urlparse(url).path)
+                                filename = helpers.add_image_file_extension_if_none(filename, response.headers['content-type'])
+                            with open(constants.folder_path + "/" + filename, "wb") as f:
+                                f.write(response.content)
 
         return
 
