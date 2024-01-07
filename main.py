@@ -4,6 +4,9 @@ import discord
 import constants
 import os
 import requests
+import helpers
+import validators
+import pyrfc6266
 
 
 class MyClient(discord.Client):
@@ -29,8 +32,17 @@ class MyClient(discord.Client):
                     if attachment.url and attachment.filename:
                         url = attachment.url
                         response = requests.get(url)
-                        with open(constants.folder_path + "/" + attachment.filename, "wb") as f:
+                        if response.status_code == 200:
+                            with open(constants.folder_path + "/" + attachment.filename, "wb") as f:
+                                f.write(response.content)
+            elif validators.url(msg.content):
+                if helpers.is_url_image(msg.content):
+                    response = requests.get(msg.content)
+                    if response.status_code == 200:
+                        filename = pyrfc6266.parse_filename(response.headers['content-disposition'])
+                        with open(constants.folder_path + "/" + filename, "wb") as f:
                             f.write(response.content)
+
         return
 
 
