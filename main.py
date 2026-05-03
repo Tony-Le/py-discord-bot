@@ -2,7 +2,6 @@
 from datetime import datetime
 
 import discord
-import constants
 import os
 import requests
 import helpers
@@ -11,7 +10,9 @@ import pyrfc6266
 from urlextract import URLExtract
 import os
 from urllib.parse import urlparse
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class MyClient(discord.Client):
     async def on_ready(self):
@@ -22,14 +23,15 @@ class MyClient(discord.Client):
         print(f'Message from {message.author}: {message.content}')
 
     async def get_attachments_in_channel(self):
-        if not os.path.exists(constants.folder_path):
-            os.makedirs(constants.folder_path)
+        
+        if not os.path.exists(os.getenv("FOLDER_PATH")):
+            os.makedirs(os.getenv("FOLDER_PATH"))
 
-        channel = discord.utils.get(self.get_all_channels(), name=constants.discord_channel_name)
+        channel = discord.utils.get(self.get_all_channels(), name=os.getenv("DISCORD_CHANNEL_NAME"))
         # This was a synchronous way to access messages in a channel history below,
         # channel.history provides an async iterator
-        # messages = [message async for message in channel.history(limit=constants.message_search_limit)]
-        async for msg in channel.history(limit=constants.message_search_limit):
+        # messages = [message async for message in channel.history(limit=int(os.getenv("MESSAGE_SEARCH_LIMIT")))]
+        async for msg in channel.history(limit=int(os.getenv("MESSAGE_SEARCH_LIMIT"))):
             print(msg.content)
             extractor = URLExtract()
             urls = extractor.find_urls(msg.content)
@@ -39,7 +41,7 @@ class MyClient(discord.Client):
                         url = attachment.url
                         response = requests.get(url)
                         if response.status_code == 200:
-                            with open(constants.folder_path + "/" + attachment.filename, "wb") as f:
+                            with open(os.getenv("FOLDER_PATH") + "/" + attachment.filename, "wb") as f:
                                 f.write(response.content)
             for url in urls:
                 if validators.url(url):
@@ -52,7 +54,7 @@ class MyClient(discord.Client):
                             elif len(os.path.basename(urlparse(url).path)) > 0:
                                 filename = os.path.basename(urlparse(url).path)
                                 filename = helpers.add_image_file_extension_if_none(filename, response.headers['content-type'])
-                            with open(constants.folder_path + "/" + filename, "wb") as f:
+                            with open(os.getenv("FOLDER_PATH") + "/" + filename, "wb") as f:
                                 f.write(response.content)
 
         return
@@ -62,4 +64,4 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 client = MyClient(intents=intents)
-client.run(constants.discord_token)
+client.run(os.getenv("DISCORD_TOKEN"))
